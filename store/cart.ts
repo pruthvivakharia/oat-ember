@@ -1,0 +1,4 @@
+'use client';
+import {create} from 'zustand';import {persist} from 'zustand/middleware';import {CartItem,Product} from '@/types';
+interface CartState{items:CartItem[];open:boolean;add:(p:Product,c:CartItem['customizations'])=>void;remove:(id:string)=>void;clear:()=>void;setOpen:(v:boolean)=>void;total:()=>number}
+export const useCart=create<CartState>()(persist((set,get)=>({items:[],open:false,add:(p,c)=>set(s=>{const key=JSON.stringify(c);const found=s.items.find(i=>i.id===p.id&&JSON.stringify(i.customizations)===key);if(found)return{items:s.items.map(i=>i===found?{...i,quantity:i.quantity+1}:i),open:true};return{items:[...s.items,{...p,quantity:1,customizations:c}],open:true}}),remove:id=>set(s=>({items:s.items.flatMap(i=>i.id===id?(i.quantity>1?[{...i,quantity:i.quantity-1}]:[]):[i])})),clear:()=>set({items:[]}),setOpen:v=>set({open:v}),total:()=>get().items.reduce((a,i)=>a+(i.price+i.customizations.shots*50)*i.quantity,0)}),{name:'oat-ember-cart'}));

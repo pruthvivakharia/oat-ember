@@ -1,5 +1,5 @@
 export type OrderEvent = {
-  type: 'ORDER_CREATED' | 'ORDER_STATUS_CHANGED';
+  type: "ORDER_CREATED" | "ORDER_STATUS_CHANGED";
   orderId: string;
   status: string;
   createdAt: string;
@@ -10,7 +10,9 @@ export type OrderEvent = {
 
 type Listener = (event: OrderEvent) => void;
 
-type GlobalBus = typeof globalThis & { __oatEmberOrderListeners?: Set<Listener> };
+type GlobalBus = typeof globalThis & {
+  __oatEmberOrderListeners?: Set<Listener>;
+};
 const globalBus = globalThis as GlobalBus;
 const listeners = globalBus.__oatEmberOrderListeners ?? new Set<Listener>();
 globalBus.__oatEmberOrderListeners = listeners;
@@ -21,5 +23,5 @@ export function subscribeToOrderEvents(listener: Listener) {
 }
 
 export function publishOrderEvent(event: OrderEvent) {
-  for (const listener of listeners) listener(event);
+  listeners.forEach((listener) => listener(event));
 }

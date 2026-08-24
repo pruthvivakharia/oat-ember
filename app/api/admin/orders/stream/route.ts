@@ -1,27 +1,40 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { subscribeToOrderEvents } from '@/lib/order-events';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { subscribeToOrderEvents } from "@/lib/order-events";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user || (session.user as any).role !== 'ADMIN') return new Response('Unauthorized', { status: 401 });
+  if (!session?.user || (session.user as any).role !== "ADMIN")
+    return new Response("Unauthorized", { status: 401 });
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      const send = (payload: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
-      send({ type: 'CONNECTED', at: new Date().toISOString() });
+      const send = (payload: unknown) =>
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(payload)}\n\n`),
+        );
+      send({ type: "CONNECTED", at: new Date().toISOString() });
       unsubscribe = subscribeToOrderEvents(send);
-      heartbeat = setInterval(() => send({ type: 'HEARTBEAT', at: new Date().toISOString() }), 15000);
+      heartbeat = setInterval(
+        () => send({ type: "HEARTBEAT", at: new Date().toISOString() }),
+        15000,
+      );
     },
     cancel() {
       if (unsubscribe) unsubscribe();
       if (heartbeat) clearInterval(heartbeat);
-    }
+    },
   });
-  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' } });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
 }

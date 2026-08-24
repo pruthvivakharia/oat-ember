@@ -59,6 +59,20 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     const customerEmail = session?.user?.email || customerEmailInput;
     const customerName = session?.user?.name || customerNameInput;
+    if (!razorpay) {
+      return NextResponse.json({
+        demo: true,
+        orderId: `demo_${Date.now()}`,
+        amount: subtotal * 100,
+        currency: "INR",
+        customerName,
+        customerEmail,
+        customerPhone: phone,
+        keyId: null,
+        message: "Demo payment mode",
+      });
+    }
+
     const rOrder = await razorpay.orders.create({
       amount: subtotal * 100,
       currency: "INR",

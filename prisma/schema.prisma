@@ -1,0 +1,229 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String         @id @default(cuid())
+  nameEncrypted   String?
+  emailEncrypted  String?
+  emailHash       String         @unique
+  phoneEncrypted  String?
+  phoneHash       String?        @unique
+  passwordHash    String?
+  role            String         @default("CUSTOMER")
+  phoneVerifiedAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  orders          Order[]
+  testimonials    Testimonial[]
+  otpChallenges   OtpChallenge[]
+  favorites       Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt])
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  rating    Int      @default(5)
+  text      String   @db.Text
+  photoUrl  String?  @db.Text
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String
+  category    String
+  price       Int
+  image       String
+  available   Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+  favorites   Favorite[]
+}
+
+model Order {
+  id                     String              @id @default(cuid())
+  userId                 String?
+  user                   User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerNameEncrypted  String
+  customerEmailEncrypted String?
+  customerPhoneEncrypted String
+  customerPhoneHash      String
+  fulfillmentType        String
+  fulfillmentData        String              @db.Text
+  subtotal               Int
+  total                  Int
+  currency               String              @default("INR")
+  status                 String              @default("RECEIVED")
+  paymentMethod          String              @default("RAZORPAY")
+  paymentStatus          String              @default("PENDING")
+  razorpayOrderId        String?             @unique
+  razorpayPaymentId      String?             @unique
+  razorpaySignature      String?
+  trackingToken          String              @unique @default(cuid())
+  cashOtpVerifiedAt      DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  items                  OrderItem[]
+  notifications          OrderNotification[]
+
+  @@index([customerPhoneHash])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+  name           String
+  quantity       Int
+  unitPrice      Int
+  customizations String?
+}
+
+model OtpChallenge {
+  id                    String    @id @default(cuid())
+  userId                String?
+  user                  User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  phoneHash             String
+  purpose               String
+  codeHash              String
+  attempts              Int       @default(0)
+  maxAttempts           Int       @default(5)
+  expiresAt             DateTime
+  resendAvailableAt     DateTime
+  verifiedAt             DateTime?
+  verificationTokenHash String?   @unique
+  verificationExpiresAt DateTime?
+  consumedAt            DateTime?
+  createdAt              DateTime  @default(now())
+
+  @@index([phoneHash, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+model OrderNotification {
+  id         String    @id @default(cuid())
+  orderId    String
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  channel    String
+  event      String
+  status     String    @default("PENDING")
+  providerId String?
+  attempts   Int       @default(0)
+  lastError  String?   @db.Text
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([orderId, channel, event])
+  @@index([status, createdAt])
+}
+
+model PaymentIntent {
+  id                     String   @id @default(cuid())
+  userId                 String?
+  razorpayOrderId        String   @unique
+  customerNameEncrypted  String
+  customerEmailEncrypted String?
+  customerPhoneEncrypted String
+  customerPhoneHash      String
+  fulfillmentType        String
+  fulfillmentData        String   @db.Text
+  itemsJson              String   @db.Text
+  subtotal               Int
+  currency               String   @default("INR")
+  status                 String   @default("CREATED")
+  razorpayPaymentId      String?  @unique
+  expiresAt              DateTime
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([customerPhoneHash])
+}
+
+model Offer {
+  id          String   @id @default(cuid())
+  title       String
+  code        String?  @unique
+  description String   @db.Text
+  discountType String  @default("PERCENT")
+  value       Int      @default(0)
+  active      Boolean  @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, startsAt, endsAt])
+}
+
+model Staff {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  role      String   @default("COUNTER")
+  shift     String?
+  active    Boolean  @default(true)
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, role])
+}
+
+model CafeSetting {
+  id            String   @id @default(cuid())
+  cafeName      String   @default("Oat & Ember")
+  tagline       String   @default("Takeaway coffee · Surat")
+  phone         String   @default("")
+  email         String   @default("")
+  address       String   @default("")
+  openingHours  String   @default("08:00 - 22:00")
+  taxPercent    Float    @default(0)
+  orderLeadTime Int      @default(15)
+  whatsappEnabled Boolean @default(false)
+  onlinePaymentsEnabled Boolean @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model QrEntry {
+  id        String   @id @default(cuid())
+  label     String
+  kind      String   @default("COUNTER")
+  token     String   @unique @default(cuid())
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, kind])
+}

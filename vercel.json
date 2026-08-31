@@ -1,0 +1,4 @@
+{
+  "version": 2,
+  "buildCommand": "prisma generate && prisma migrate deploy && next build"
+}

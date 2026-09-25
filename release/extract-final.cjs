@@ -1,5 +1,8 @@
 const fs=require("fs"),path=require("path"),zlib=require("zlib"),cp=require("child_process");
 const root=process.cwd(), releaseDir=path.join(root,"release");
+for(const name of ["app","components","hooks","lib","prisma","public","scripts","styles","next-env.d.ts","next.config.ts","tsconfig.json","eslint.config.mjs"]){
+ fs.rmSync(path.join(root,name),{recursive:true,force:true});
+}
 const parts=fs.readdirSync(releaseDir).filter(n=>/^payload-\d+\.b64$/.test(n)).sort((a,b)=>Number(a.match(/\d+/)[0])-Number(b.match(/\d+/)[0]));
 if(!parts.length) throw new Error("Missing final source payload.");
 const encoded=parts.map(n=>fs.readFileSync(path.join(releaseDir,n),"utf8").trim()).join("");

@@ -3,24 +3,25 @@ const path = require("path");
 const zlib = require("zlib");
 const cp = require("child_process");
 
-const releaseDir = path.join(process.cwd(), "release");
+const root = process.cwd();
+for (const name of ["app","components","hooks","lib","prisma","public","next-env.d.ts","next.config.ts","package.json","tsconfig.json","eslint.config.mjs"]) {
+  fs.rmSync(path.join(root, name), { recursive: true, force: true });
+}
+
+const releaseDir = path.join(root, "release");
 const parts = fs.readdirSync(releaseDir)
   .filter((name) => /^payload-\d+\.b64$/.test(name))
-  .sort();
+  .sort((a,b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
 
 if (!parts.length) throw new Error("No release payload chunks found.");
 
-const encoded = parts.map((name) => fs.readFileSync(path.join(releaseDir, name), "utf8").trim()).join("");
-const archive = Buffer.from(encoded, "base64");
-const tarPath = path.join(releaseDir, "final-source.tar.br");
-fs.writeFileSync(tarPath, archive);
-
+const encoded = parts.map((name) => fs.readFileSync(path.join(releaseDir,name),"utf8").trim()).join("");
+const archive = Buffer.from(encoded,"base64");
+const tar = zlib.brotliDecompressSync(archive);
+const tarPath = path.join("/tmp","ember-oak-release.tar");
+fs.writeFileSync(tarPath, tar);
 try {
-  const tar = zlib.brotliDecompressSync(archive);
-  const gzPath = path.join(releaseDir, "final-source.tar");
-  fs.writeFileSync(gzPath, tar);
-  cp.execFileSync("tar", ["-xf", gzPath, "-C", process.cwd()], { stdio: "inherit" });
-  fs.unlinkSync(gzPath);
+  cp.execFileSync("tar", ["-xf", tarPath, "-C", root], { stdio: "inherit" });
 } finally {
-  fs.unlinkSync(tarPath);
+  fs.rmSync(tarPath, { force: true });
 }
